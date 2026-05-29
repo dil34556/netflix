@@ -25,16 +25,15 @@ class NetflixApp(QMainWindow):
         self.resize(1280, 800)
         self.setStyleSheet("QMainWindow { background-color: #000000; }")
         
-        # Use a StackedWidget to hold both views
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
         
-        # 1. Main Netflix View (Bottom of stack)
+        # 1. Main Netflix View
         self.main_browser = QWebEngineView()
+        self.main_browser.setStyleSheet("background-color: #000000;")
         profile = QWebEngineProfile.defaultProfile()
         profile.setHttpUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
-        # Hide scrollbars script
         script = QWebEngineScript()
         script.setSourceCode("var style = document.createElement('style'); style.innerHTML = 'body::-webkit-scrollbar { display: none; }'; document.head.appendChild(style);")
         script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
@@ -44,32 +43,33 @@ class NetflixApp(QMainWindow):
         
         self.main_browser.setPage(NetflixPage(profile, self.main_browser))
         
-        # 2. Intro View (Top of stack)
+        # 2. Intro View
         self.intro_browser = QWebEngineView()
-        self.intro_browser.setStyleSheet("background-color: transparent;")
+        self.intro_browser.setStyleSheet("background-color: #000000;")
         
         self.stack.addWidget(self.main_browser) # Index 0
         self.stack.addWidget(self.intro_browser) # Index 1
-        self.stack.setCurrentIndex(1) # Show Intro first
+        self.stack.setCurrentIndex(1)
         
         self.start_app_flow()
 
     def start_app_flow(self):
-        # 1. Start pre-loading Netflix in the background
+        # Pre-load Netflix
         self.main_browser.setUrl(QUrl("https://www.netflix.com"))
         
-        # 2. Show Intro
         intro_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "intro", "index.html"))
         if os.path.exists(intro_path):
             self.intro_browser.setUrl(QUrl.fromLocalFile(intro_path))
-            # Switch to Netflix after 4.5s
-            QTimer.singleShot(4500, self.transition_to_main)
+            # Increase overlap slightly to 4.7s to ensure main browser has painted
+            QTimer.singleShot(4700, self.transition_to_main)
         else:
             self.transition_to_main()
 
     def transition_to_main(self):
+        # Final smoothness: Ensure main browser is showing before deleting intro
         self.stack.setCurrentIndex(0)
-        self.intro_browser.deleteLater()
+        # Delay deletion of intro slightly to avoid 'nano-sec' gap
+        QTimer.singleShot(100, lambda: self.intro_browser.deleteLater())
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_F11:
