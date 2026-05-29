@@ -1,0 +1,38 @@
+import XCTest
+@testable import Netflix
+
+class NetflixNavigationTests: XCTestCase {
+
+    func testAllowedHosts() {
+        let allowedHosts = [
+            "netflix.com",
+            "www.netflix.com",
+            "help.netflix.com",
+            "nflxvideo.net",
+            "cdn.nflxvideo.net",
+            "nflximg.net",
+            "nflxso.net",
+            "nflxext.com"
+        ]
+        
+        for host in allowedHosts {
+            XCTAssertTrue(WebViewController.isHostAllowed(host), "Should allow \(host)")
+        }
+    }
+
+    func testBlockedHosts() {
+        let blockedHosts = [
+            "google.com",
+            "www.google.com",
+            "youtube.com",
+            "netflix.org", // Incorrect TLD
+            "malicious-netflix.com",
+            "",
+            nil
+        ]
+        
+        for host in blockedHosts {
+            XCTAssertFalse(WebViewController.isHostAllowed(host), "Should block \(String(describing: host))")
+        }
+    }
+}

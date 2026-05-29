@@ -1,0 +1,63 @@
+name: Build Netflix Apps
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install XcodeGen
+        run: brew install xcodegen
+        
+      - name: Generate Xcode Project
+        run: xcodegen generate
+        
+      - name: Build macOS App
+        run: |
+          xcodebuild -project Netflix.xcodeproj \
+                     -scheme Netflix \
+                     -configuration Release \
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO
+                     
+      - name: Package App
+        run: |
+          mkdir -p dist
+          cp -R build/Build/Products/Release/Netflix.app dist/
+          cd dist && zip -r ../Netflix-Mac.zip Netflix.app
+          
+      - name: Upload Mac Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Netflix-Mac
+          path: Netflix-Mac.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller PyQt6 PyQt6-WebEngine
+          
+      - name: Build Linux Binary
+        run: |
+          cd netflix-linux
+          pyinstaller --onefile --windowed --name Netflix-Linux netflix_app.py
+          
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Netflix-Linux
+          path: netflix-linux/dist/Netflix-Linux
