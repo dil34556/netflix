@@ -17,7 +17,6 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         view.layer?.backgroundColor = NSColor.black.cgColor
         self.view = view
         
-        // 1. Setup Main Netflix WebView (Background)
         let config = WKWebViewConfiguration()
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
@@ -40,7 +39,6 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         
         view.addSubview(mainWebView)
         
-        // 2. Setup Intro WebView (Foreground)
         let introConfig = WKWebViewConfiguration()
         introConfig.mediaTypesRequiringUserActionForPlayback = []
         
@@ -72,6 +70,9 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         guard let netflixUrl = URL(string: "https://www.netflix.com") else { return }
         mainWebView.load(URLRequest(url: netflixUrl))
         
+        // Start probing for content
+        probeForNetflixContent()
+        
         guard let introPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "Intro") else {
             self.introWebView.isHidden = true
             return
@@ -79,10 +80,29 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let introUrl = URL(fileURLWithPath: introPath)
         introWebView.loadFileURL(introUrl, allowingReadAccessTo: introUrl.deletingLastPathComponent())
         
-        // Wait 4.7s for intro animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.7) { [weak self] in
             self?.introFinished = true
             self?.checkTransition()
+        }
+    }
+
+    func probeForNetflixContent() {
+        let checkScript = "document.querySelector('.profile-gate-label, .browse-navigation, .watch-video') !== null"
+        mainWebView.evaluateJavaScript(checkScript) { [weak self] (result, error) in
+            if let isReady = result as? Bool, isReady {
+                // Content found! Wait 300ms then transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self?.netflixReady = true
+                    self?.checkTransition()
+                }
+            } else {
+                // Not ready, probe again in 200ms
+                if self?.transitionStarted == false {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        self?.probeForNetflixContent()
+                    }
+                }
+            }
         }
     }
 
@@ -90,23 +110,12 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         if netflixReady && introFinished && !transitionStarted {
             transitionStarted = true
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 1.5 // Extra smooth fade
+                context.duration = 1.2
                 self.introWebView.animator().alphaValue = 0
             }, completionHandler: {
                 self.introWebView.isHidden = true
                 self.introWebView.removeFromSuperview()
             })
-        }
-    }
-
-    // MARK: - WKNavigationDelegate
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView == mainWebView {
-            // Wait extra 200ms to ensure the first frame is painted
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.netflixReady = true
-                self?.checkTransition()
-            }
         }
     }
 
