@@ -23,10 +23,18 @@ jobs:
                      -scheme Netflix \
                      -configuration Release \
                      -derivedDataPath build \
-                     CODE_SIGN_IDENTITY="-" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=YES
+                     ARCHS="arm64 x86_64" \
+                     ONLY_ACTIVE_ARCH=NO \
+                     CODE_SIGNING_ALLOWED=NO
                      
+      - name: Manual Ad-Hoc Sign
+        run: |
+          APP_PATH="build/Build/Products/Release/Netflix.app"
+          ENTITLEMENTS="Netflix/Netflix/Netflix.entitlements"
+          
+          # Force sign everything deeply with ad-hoc identity
+          codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" --options runtime "$APP_PATH"
+          
       - name: Package as DMG
         run: |
           mkdir -p dist

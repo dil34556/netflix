@@ -11,3 +11,6 @@ targets:
     settings:
       INFOPLIST_FILE: Netflix/Netflix/Info.plist
       CODE_SIGNING_ENTITLEMENTS: Netflix/Netflix/Netflix.entitlements
+      ENABLE_HARDENED_RUNTIME: YES
+      ARCHS: arm64 x86_64
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
