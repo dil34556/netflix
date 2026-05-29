@@ -9,27 +9,29 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
 
     override func loadView() {
         let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor // Root view is black
         self.view = view
         
-        // 1. Setup Main Netflix WebView (Background)
+        // 1. Setup Main Netflix WebView
         let config = WKWebViewConfiguration()
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
         
-        let styleSource = "body::-webkit-scrollbar { display: none; }"
-        let userScript = WKUserScript(source: styleSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        let styleSource = "body::-webkit-scrollbar { display: none; } body { background-color: black !important; }"
+        let userScript = WKUserScript(source: styleSource, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(userScript)
 
         mainWebView = WKWebView(frame: .zero, configuration: config)
         mainWebView.navigationDelegate = self
         mainWebView.uiDelegate = self
-        mainWebView.setValue(false, forKey: "drawsBackground")
+        mainWebView.setValue(false, forKey: "drawsBackground") // Transparent, shows black root view
         mainWebView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(mainWebView)
         
-        // 2. Setup Intro WebView (Foreground)
+        // 2. Setup Intro WebView
         let introConfig = WKWebViewConfiguration()
         introConfig.mediaTypesRequiringUserActionForPlayback = []
         
@@ -59,11 +61,9 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func startAppFlow() {
-        // Start pre-loading Netflix in the background
         guard let netflixUrl = URL(string: "https://www.netflix.com") else { return }
         mainWebView.load(URLRequest(url: netflixUrl))
         
-        // Show Intro
         guard let introPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "Intro") else {
             self.introWebView.isHidden = true
             return
@@ -71,10 +71,10 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let introUrl = URL(fileURLWithPath: introPath)
         introWebView.loadFileURL(introUrl, allowingReadAccessTo: introUrl.deletingLastPathComponent())
         
-        // Seamless transition after 4.5s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) { [weak self] in
+        // Start fade out at 4.7s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.7) { [weak self] in
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.5
+                context.duration = 1.0 // Slower fade
                 self?.introWebView.animator().alphaValue = 0
             }, completionHandler: {
                 self?.introWebView.isHidden = true
