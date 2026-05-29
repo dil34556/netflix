@@ -3,7 +3,7 @@ import os
 from PyQt6.QtCore import QUrl, Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QStackedWidget
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineScript, QWebEngineSettings
 
 class NetflixPage(QWebEnginePage):
     ALLOWED_HOSTS = ["netflix.com", "www.netflix.com", "nflxvideo.net", "nflximg.net", "nflxso.net", "nflxext.com"]
@@ -46,6 +46,11 @@ class NetflixApp(QMainWindow):
         # 2. Intro View
         self.intro_browser = QWebEngineView()
         self.intro_browser.setStyleSheet("background-color: #000000;")
+        
+        # Enable autoplay without user interaction
+        self.intro_browser.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False
+        )
         
         self.stack.addWidget(self.main_browser) # Index 0
         self.stack.addWidget(self.intro_browser) # Index 1
