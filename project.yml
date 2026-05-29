@@ -11,4 +11,3 @@ targets:
     settings:
       INFOPLIST_FILE: Netflix/Netflix/Info.plist
       CODE_SIGNING_ENTITLEMENTS: Netflix/Netflix/Netflix.entitlements
-      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

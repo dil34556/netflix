@@ -27,17 +27,17 @@ jobs:
                      CODE_SIGNING_REQUIRED=NO \
                      CODE_SIGNING_ALLOWED=YES
                      
-      - name: Package App
+      - name: Package as DMG
         run: |
           mkdir -p dist
           cp -R build/Build/Products/Release/Netflix.app dist/
-          cd dist && zip -r ../Netflix-Mac.zip Netflix.app
+          hdiutil create -volname "Netflix" -srcfolder dist -ov -format UDZO Netflix.dmg
           
       - name: Upload Mac Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Netflix-Mac
-          path: Netflix-Mac.zip
+          name: Netflix-Mac-DMG
+          path: Netflix.dmg
 
   build-linux:
     runs-on: ubuntu-latest
