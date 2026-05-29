@@ -8,40 +8,48 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     var introWebView: WKWebView!
 
     override func loadView() {
+        // 1. ROOT VIEW - PURE BLACK (The ultimate safety layer)
         let view = NSView()
         view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.black.cgColor // Root view is black
+        view.layer?.backgroundColor = NSColor.black.cgColor
         self.view = view
         
-        // 1. Setup Main Netflix WebView
+        // 2. Setup Main Netflix WebView
         let config = WKWebViewConfiguration()
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
         
-        let styleSource = "body::-webkit-scrollbar { display: none; } body { background-color: black !important; }"
+        // AGGRESSIVE ANTI-WHITE: Force black body and hide scrollbars
+        let styleSource = """
+            body { background-color: black !important; color: white !important; }
+            html { background-color: black !important; }
+            ::-webkit-scrollbar { display: none; }
+        """
         let userScript = WKUserScript(source: styleSource, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(userScript)
 
         mainWebView = WKWebView(frame: .zero, configuration: config)
         mainWebView.navigationDelegate = self
         mainWebView.uiDelegate = self
-        mainWebView.setValue(false, forKey: "drawsBackground") // Transparent, shows black root view
+        
+        // Make WebView transparent so the black root view shows through
+        mainWebView.setValue(false, forKey: "drawsBackground") 
         mainWebView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(mainWebView)
         
-        // 2. Setup Intro WebView
+        // 3. Setup Intro WebView (Top Layer)
         let introConfig = WKWebViewConfiguration()
         introConfig.mediaTypesRequiringUserActionForPlayback = []
         
         introWebView = WKWebView(frame: .zero, configuration: introConfig)
-        introWebView.setValue(false, forKey: "drawsBackground")
+        introWebView.setValue(false, forKey: "drawsBackground") // Also transparent
         introWebView.translatesAutoresizingMaskIntoConstraints = false
         
         view.addSubview(introWebView)
         
-        // Constraints
+        // Constraints to fill window
         NSLayoutConstraint.activate([
             mainWebView.topAnchor.constraint(equalTo: view.topAnchor),
             mainWebView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -61,9 +69,11 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func startAppFlow() {
+        // Load Netflix in background
         guard let netflixUrl = URL(string: "https://www.netflix.com") else { return }
         mainWebView.load(URLRequest(url: netflixUrl))
         
+        // Load Intro
         guard let introPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "Intro") else {
             self.introWebView.isHidden = true
             return
@@ -71,10 +81,10 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let introUrl = URL(fileURLWithPath: introPath)
         introWebView.loadFileURL(introUrl, allowingReadAccessTo: introUrl.deletingLastPathComponent())
         
-        // Start fade out at 4.7s
+        // Seamless transition after animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.7) { [weak self] in
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 1.0 // Slower fade
+                context.duration = 1.2 // Smooth cross-fade
                 self?.introWebView.animator().alphaValue = 0
             }, completionHandler: {
                 self?.introWebView.isHidden = true
