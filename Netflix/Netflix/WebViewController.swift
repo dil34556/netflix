@@ -9,6 +9,7 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     
     var netflixReady = false
     var introFinished = false
+    var transitionStarted = false
 
     override func loadView() {
         let view = NSView()
@@ -16,13 +17,18 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         view.layer?.backgroundColor = NSColor.black.cgColor
         self.view = view
         
-        // 1. Setup Main Netflix WebView
+        // 1. Setup Main Netflix WebView (Background)
         let config = WKWebViewConfiguration()
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
         
-        let styleSource = "body { background-color: black !important; } html { background-color: black !important; } ::-webkit-scrollbar { display: none; }"
+        let styleSource = """
+            document.documentElement.style.backgroundColor = 'black';
+            var style = document.createElement('style');
+            style.innerHTML = 'html, body { background-color: black !important; } ::-webkit-scrollbar { display: none; }';
+            document.head.appendChild(style);
+        """
         let userScript = WKUserScript(source: styleSource, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(userScript)
 
@@ -34,7 +40,7 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         
         view.addSubview(mainWebView)
         
-        // 2. Setup Intro WebView
+        // 2. Setup Intro WebView (Foreground)
         let introConfig = WKWebViewConfiguration()
         introConfig.mediaTypesRequiringUserActionForPlayback = []
         
@@ -73,7 +79,7 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let introUrl = URL(fileURLWithPath: introPath)
         introWebView.loadFileURL(introUrl, allowingReadAccessTo: introUrl.deletingLastPathComponent())
         
-        // Wait 4.7s for intro
+        // Wait 4.7s for intro animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.7) { [weak self] in
             self?.introFinished = true
             self?.checkTransition()
@@ -81,9 +87,10 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func checkTransition() {
-        if netflixReady && introFinished {
+        if netflixReady && introFinished && !transitionStarted {
+            transitionStarted = true
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 1.0
+                context.duration = 1.5 // Extra smooth fade
                 self.introWebView.animator().alphaValue = 0
             }, completionHandler: {
                 self.introWebView.isHidden = true
@@ -95,8 +102,11 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     // MARK: - WKNavigationDelegate
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView == mainWebView {
-            self.netflixReady = true
-            self.checkTransition()
+            // Wait extra 200ms to ensure the first frame is painted
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.netflixReady = true
+                self?.checkTransition()
+            }
         }
     }
 
