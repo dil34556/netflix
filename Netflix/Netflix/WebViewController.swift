@@ -25,7 +25,6 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
-        config.allowsPictureInPictureMediaPlayback = true
         
         let styleSource = """
         (() => {
