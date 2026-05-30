@@ -39,10 +39,7 @@ targets:
     deploymentTarget: "13.0"
     sources:
       - Netflix/NetflixTests
-    dependencies:
-      - target: Netflix
+      - Netflix/Netflix/NetflixHostPolicy.swift
     settings:
       GENERATE_INFOPLIST_FILE: YES
       MACOSX_DEPLOYMENT_TARGET: "13.0"
-      BUNDLE_LOADER: "$(BUILT_PRODUCTS_DIR)/Netflix.app/Contents/MacOS/Netflix"
-      TEST_HOST: "$(BUNDLE_LOADER)"

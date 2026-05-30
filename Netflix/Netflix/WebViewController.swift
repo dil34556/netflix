@@ -4,27 +4,13 @@ import AVKit
 
 class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
 
-    static let allowedHosts = [
-        "netflix.com",
-        "nflxvideo.net",
-        "nflximg.net",
-        "nflxso.net",
-        "nflxext.com"
-    ]
-
     var mainWebView: WKWebView!
     var introWebView: WKWebView!
     var transitionStarted = false
     private var startupFallbackWorkItem: DispatchWorkItem?
 
     static func isHostAllowed(_ host: String?) -> Bool {
-        guard let host = host?.lowercased(), !host.isEmpty else {
-            return false
-        }
-
-        return allowedHosts.contains { allowedHost in
-            host == allowedHost || host.hasSuffix("." + allowedHost)
-        }
+        NetflixHostPolicy.isAllowed(host)
     }
 
     override func loadView() {

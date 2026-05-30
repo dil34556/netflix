@@ -1,5 +1,4 @@
 import XCTest
-@testable import Netflix
 
 class NetflixNavigationTests: XCTestCase {
 
@@ -16,7 +15,7 @@ class NetflixNavigationTests: XCTestCase {
         ]
         
         for host in allowedHosts {
-            XCTAssertTrue(WebViewController.isHostAllowed(host), "Should allow \(host)")
+            XCTAssertTrue(NetflixHostPolicy.isAllowed(host), "Should allow \(host)")
         }
     }
 
@@ -32,7 +31,7 @@ class NetflixNavigationTests: XCTestCase {
         ]
         
         for host in blockedHosts {
-            XCTAssertFalse(WebViewController.isHostAllowed(host), "Should block \(String(describing: host))")
+            XCTAssertFalse(NetflixHostPolicy.isAllowed(host), "Should block \(String(describing: host))")
         }
     }
 }
