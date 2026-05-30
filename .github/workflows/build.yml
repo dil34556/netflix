@@ -16,6 +16,14 @@ jobs:
         
       - name: Generate Xcode Project
         run: xcodegen generate
+
+      - name: Run macOS Tests
+        run: |
+          xcodebuild -project Netflix.xcodeproj \
+                     -scheme Netflix \
+                     -destination 'platform=macOS' \
+                     CODE_SIGNING_ALLOWED=NO \
+                     test
         
       - name: Build macOS App
         run: |

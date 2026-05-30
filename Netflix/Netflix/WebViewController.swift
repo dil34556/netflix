@@ -4,9 +4,28 @@ import AVKit
 
 class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
 
+    static let allowedHosts = [
+        "netflix.com",
+        "nflxvideo.net",
+        "nflximg.net",
+        "nflxso.net",
+        "nflxext.com"
+    ]
+
     var mainWebView: WKWebView!
     var introWebView: WKWebView!
     var transitionStarted = false
+    private var startupFallbackWorkItem: DispatchWorkItem?
+
+    static func isHostAllowed(_ host: String?) -> Bool {
+        guard let host = host?.lowercased(), !host.isEmpty else {
+            return false
+        }
+
+        return allowedHosts.contains { allowedHost in
+            host == allowedHost || host.hasSuffix("." + allowedHost)
+        }
+    }
 
     override func loadView() {
         // 1. ROOT BLACKOUT
@@ -19,13 +38,25 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let config = WKWebViewConfiguration()
         config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.allowsAirPlayForMediaPlayback = true
+        config.allowsPictureInPictureMediaPlayback = true
         
-        let styleSource = "body, html { background-color: black !important; } ::-webkit-scrollbar { display: none; }"
+        let styleSource = """
+        (() => {
+            const style = document.createElement('style');
+            style.textContent = `
+                body, html { background-color: black !important; }
+                ::-webkit-scrollbar { display: none; }
+            `;
+            document.documentElement.appendChild(style);
+        })();
+        """
         let userScript = WKUserScript(source: styleSource, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(userScript)
 
         mainWebView = WKWebView(frame: .zero, configuration: config)
         mainWebView.navigationDelegate = self
+        mainWebView.uiDelegate = self
         mainWebView.alphaValue = 0 // Hidden until ready
         mainWebView.setValue(false, forKey: "drawsBackground")
         mainWebView.translatesAutoresizingMaskIntoConstraints = false
@@ -55,6 +86,17 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         startAppFlow()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(togglePlayback),
+            name: .mediaPlayPause,
+            object: nil
+        )
+    }
+
+    deinit {
+        startupFallbackWorkItem?.cancel()
+        NotificationCenter.default.removeObserver(self)
     }
 
     func startAppFlow() {
@@ -68,7 +110,15 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
         let introUrl = URL(fileURLWithPath: introPath)
         introWebView.loadFileURL(introUrl, allowingReadAccessTo: introUrl.deletingLastPathComponent())
         
-        // Start probing for content after 3s
+        // Never leave the intro overlay up indefinitely. Login, error, and region pages
+        // do not expose the profile/browse selectors used by the readiness probe.
+        let fallback = DispatchWorkItem { [weak self] in
+            self?.revealNetflix()
+        }
+        startupFallbackWorkItem = fallback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0, execute: fallback)
+
+        // Start probing for browse content after 3s so returning users transition sooner.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             self?.probeForNetflix()
         }
@@ -84,7 +134,7 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
                 }
             } else {
                 if self?.transitionStarted == false {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self?.probeForNetflix()
                     }
                 }
@@ -95,6 +145,8 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
     func revealNetflix() {
         guard !transitionStarted else { return }
         transitionStarted = true
+        startupFallbackWorkItem?.cancel()
+        startupFallbackWorkItem = nil
         
         // 1. Show main webview (still under intro)
         self.mainWebView.alphaValue = 1.0
@@ -107,5 +159,62 @@ class WebViewController: NSViewController, WKNavigationDelegate, WKUIDelegate {
             self.introWebView.isHidden = true
             self.introWebView.removeFromSuperview()
         })
+    }
+
+    // MARK: - Navigation
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+
+        if url.isFileURL || Self.isHostAllowed(url.host) {
+            decisionHandler(.allow)
+            return
+        }
+
+        if navigationAction.targetFrame?.isMainFrame == true || navigationAction.targetFrame == nil {
+            NSWorkspace.shared.open(url)
+        }
+        decisionHandler(.cancel)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if let url = navigationAction.request.url, Self.isHostAllowed(url.host) {
+            webView.load(URLRequest(url: url))
+        } else if let url = navigationAction.request.url {
+            NSWorkspace.shared.open(url)
+        }
+
+        return nil
+    }
+
+    // MARK: - Media controls
+
+    @objc private func togglePlayback() {
+        let script = """
+        (() => {
+            const video = document.querySelector('video');
+            if (!video) { return false; }
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+            return true;
+        })();
+        """
+
+        mainWebView.evaluateJavaScript(script, completionHandler: nil)
     }
 }

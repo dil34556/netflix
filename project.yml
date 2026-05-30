@@ -1,16 +1,48 @@
 name: Netflix
 options:
   bundleIdPrefix: com.yourname
+schemes:
+  Netflix:
+    build:
+      targets:
+        Netflix: all
+    test:
+      config: Debug
+      targets:
+        - NetflixTests
+    run:
+      config: Debug
+    archive:
+      config: Release
 targets:
   Netflix:
     type: application
     platform: macOS
     deploymentTarget: "13.0"
     sources:
-      - Netflix/Netflix
+      - path: Netflix/Netflix
+        excludes:
+          - Info.plist
+          - Netflix.entitlements
+          - Intro
+      - path: Netflix/Netflix/Intro
+        type: folder
     settings:
       INFOPLIST_FILE: Netflix/Netflix/Info.plist
-      CODE_SIGNING_ENTITLEMENTS: Netflix/Netflix/Netflix.entitlements
+      CODE_SIGN_ENTITLEMENTS: Netflix/Netflix/Netflix.entitlements
       ENABLE_HARDENED_RUNTIME: YES
       ARCHS: arm64 x86_64
       MACOSX_DEPLOYMENT_TARGET: "13.0"
+  NetflixTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - Netflix/NetflixTests
+    dependencies:
+      - target: Netflix
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+      BUNDLE_LOADER: "$(BUILT_PRODUCTS_DIR)/Netflix.app/Contents/MacOS/Netflix"
+      TEST_HOST: "$(BUNDLE_LOADER)"
