@@ -3,7 +3,11 @@ name: Build Netflix Apps
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-macos:
@@ -54,6 +58,21 @@ jobs:
         with:
           name: Netflix-Mac-DMG
           path: Netflix.dmg
+
+      - name: Publish Mac Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Netflix $GITHUB_REF_NAME" \
+              --notes "Download Netflix.dmg, open it, and drag Netflix.app to Applications."
+
+          gh release upload "$GITHUB_REF_NAME" Netflix.dmg \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
 
   build-linux:
     runs-on: ubuntu-latest
